@@ -107,3 +107,19 @@ if cors_origins:
     CORS_ALLOWED_ORIGINS = [u.strip() for u in cors_origins.split(',')]
 else:
     CORS_ALLOWED_ORIGINS = []
+
+# Development convenience: when DEBUG is True allow all origins to avoid CORS
+# hassles during local development. In production, ensure DEBUG=False and
+# configure `CORS_ALLOWED_ORIGINS` explicitly.
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+
+# Ensure Authorization header is allowed through CORS
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'authorization',
+    'content-type',
+]
+
+# Allow cookies/credentials if needed
+CORS_ALLOW_CREDENTIALS = True
