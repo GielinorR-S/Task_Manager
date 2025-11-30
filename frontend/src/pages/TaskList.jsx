@@ -25,19 +25,44 @@ export default function TaskList(){
   }
 
   return (
-    <div>
-      <h2>Tasks</h2>
-      <ul>
-        {tasks.map(t=> (
-          <li key={t.id}>
-            <strong>{t.title}</strong> {t.completed? '✔️':''}
-            <div>
-              <Link to={`/tasks/${t.id}/edit`}>Edit</Link> |
-              <button onClick={()=>removeTask(t.id)}>Delete</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section>
+      <div className="page-header">
+        <div>
+          <p className="helper-text" style={{margin: 0}}>Create and track tasks with due dates and status.</p>
+          <h2 style={{margin: 0}}>Task dashboard</h2>
+        </div>
+        <Link to="/tasks/new" className="primary-btn">New task</Link>
+      </div>
+
+      {tasks.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">🗂️</div>
+          <h3 className="empty-title">No tasks yet</h3>
+          <p className="empty-text">Create a task to start tracking work and due dates.</p>
+          <Link to="/tasks/new" className="primary-btn">Create your first task</Link>
+        </div>
+      ) : (
+        <ul className="card-grid">
+          {tasks.map(t=> (
+            <li key={t.id} className="task-card">
+              <header>
+                <div>
+                  <p className="helper-text" style={{margin: 0}}>Task #{t.id}</p>
+                  <h3 className="task-title">{t.title}</h3>
+                </div>
+                <span className={`pill ${t.completed ? 'complete' : 'incomplete'}`}>
+                  {t.completed ? 'Completed' : 'In progress'}
+                </span>
+              </header>
+              {t.description && <p className="task-meta">{t.description}</p>}
+              <div className="task-actions">
+                <Link to={`/tasks/${t.id}/edit`} className="ghost-btn">Edit</Link>
+                <button type="button" onClick={()=>removeTask(t.id)} className="ghost-btn">Delete</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
