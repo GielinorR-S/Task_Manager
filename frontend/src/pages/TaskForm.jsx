@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import api from '../api'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 function toLocalInputValue(iso) {
   if (!iso) return ''
@@ -57,6 +57,34 @@ export default function TaskForm() {
   }
 
   return (
+    <section>
+      <div className="page-header">
+        <div>
+          <p className="helper-text" style={{margin: 0}}>{params.id ? 'Update task details' : 'Create a task with title and description'}</p>
+          <h2 style={{margin: 0}}>{params.id ? 'Edit task' : 'New task'}</h2>
+        </div>
+      </div>
+
+      <form onSubmit={save} className="form-card">
+        <div className="form-group">
+          <label>Title</label>
+          <input value={title} onChange={e=>setTitle(e.target.value)} required placeholder="Write a clear task title" />
+        </div>
+        <div className="form-group">
+          <label>Description</label>
+          <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Add context, notes, or requirements" />
+        </div>
+        <div className="form-group">
+          <label className="helper-text" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+            <input type="checkbox" checked={completed} onChange={e=>setCompleted(e.target.checked)} /> Mark as completed
+          </label>
+        </div>
+        <div className="form-actions">
+          <Link to="/" className="ghost-btn">Cancel</Link>
+          <button type="submit" className="primary-btn">Save task</button>
+        </div>
+      </form>
+    </section>
     <form className="form" onSubmit={save}>
       <div className="form-header">
         <div>

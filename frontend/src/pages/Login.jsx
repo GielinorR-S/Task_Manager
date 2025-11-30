@@ -26,6 +26,28 @@ export default function Login() {
   }
 
   return (
+    <section>
+      <div className="page-header">
+        <div>
+          <p className="helper-text" style={{margin: 0}}>Sign in to request a JWT access token</p>
+          <h2 style={{margin: 0}}>Login</h2>
+        </div>
+      </div>
+
+      <form onSubmit={submit} className="form-card">
+        <div className="form-group">
+          <label>Username</label>
+          <input value={username} onChange={e=>setUsername(e.target.value)} required placeholder="Enter your username" />
+        </div>
+        <div className="form-group">
+          <label>Password</label>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required placeholder="Enter your password" />
+        </div>
+        <div className="form-actions">
+          <button type="submit" className="primary-btn">Login</button>
+        </div>
+      </form>
+    </section>
     <form className="form" onSubmit={submit}>
       <div className="form-header">
         <div>

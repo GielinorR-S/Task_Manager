@@ -12,6 +12,18 @@ export default function App() {
   }
 
   return (
+    <div className="container">
+      <header>
+        <div>
+          <p style={{margin: 0, color: '#9ca3af', fontWeight: 600}}>Task Manager</p>
+          <h1 style={{margin: 0}}>Workboard</h1>
+        </div>
+        <nav>
+          <Link to="/" className="ghost-btn">Tasks</Link>
+          <Link to="/tasks/new" className="ghost-btn">New Task</Link>
+          <Link to="/login" className="ghost-btn">Login</Link>
+          {isAuthenticated() && (
+            <button onClick={handleLogout} className="ghost-btn">Logout</button>
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
