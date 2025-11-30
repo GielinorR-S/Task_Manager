@@ -1,36 +1,57 @@
-import React, {useState, useEffect} from 'react'
+import React, { useState, useEffect } from 'react'
 import api from '../api'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-export default function TaskForm(){
+function toLocalInputValue(iso) {
+  if (!iso) return ''
+  const date = new Date(iso)
+  const offsetMs = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
+function toISOFromLocal(localValue) {
+  if (!localValue) return null
+  const date = new Date(localValue)
+  const offsetMs = date.getTimezoneOffset() * 60000
+  return new Date(date.getTime() - offsetMs).toISOString()
+}
+
+export default function TaskForm() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [completed, setCompleted] = useState(false)
+  const [dueAt, setDueAt] = useState('')
   const navigate = useNavigate()
   const params = useParams()
 
-  useEffect(()=>{
-    if(params.id) loadTask()
-  },[params.id])
+  useEffect(() => {
+    if (params.id) loadTask()
+  }, [params.id])
 
-  async function loadTask(){
+  async function loadTask() {
     const res = await api.get(`/tasks/${params.id}/`)
     setTitle(res.data.title)
     setDescription(res.data.description)
     setCompleted(res.data.completed)
+    setDueAt(toLocalInputValue(res.data.due_at))
   }
 
-  async function save(e){
+  async function save(e) {
     e.preventDefault()
-    const payload = {title, description, completed}
-    try{
-      if(params.id){
+    const payload = {
+      title,
+      description,
+      completed,
+      due_at: toISOFromLocal(dueAt),
+    }
+    try {
+      if (params.id) {
         await api.put(`/tasks/${params.id}/`, payload)
-      }else{
+      } else {
         await api.post('/tasks/', payload)
       }
       navigate('/')
-    }catch(err){
+    } catch (err) {
       console.error(err)
     }
   }
@@ -64,5 +85,50 @@ export default function TaskForm(){
         </div>
       </form>
     </section>
+    <form className="form" onSubmit={save}>
+      <div className="form-header">
+        <div>
+          <p className="eyebrow">Planner</p>
+          <h3>{params.id ? 'Edit task' : 'Create a new task'}</h3>
+          <p className="muted">Set clear goals, describe the work, and schedule a due date & time.</p>
+        </div>
+        <div className="form-actions">
+          <label className="checkbox">
+            <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} /> Completed
+          </label>
+          <button type="submit" className="button">
+            Save task
+          </button>
+        </div>
+      </div>
+
+      <div className="field-grid">
+        <label className="field">
+          <span>Title</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="What needs to get done?" />
+        </label>
+
+        <label className="field">
+          <span>Description</span>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add context, steps, or acceptance criteria."
+            rows={4}
+          />
+        </label>
+
+        <label className="field">
+          <span>Due date & time</span>
+          <input
+            type="datetime-local"
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
+            placeholder="Set when this should be done"
+          />
+          <p className="muted small">Optional—leave blank if this task doesn&apos;t have a deadline.</p>
+        </label>
+      </div>
+    </form>
   )
 }
