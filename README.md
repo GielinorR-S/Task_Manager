@@ -23,7 +23,7 @@ python manage.py migrate
 DB_ENGINE=sqlite python manage.py runserver 8000
 ```
 
-> The backend loads environment variables from `backend/.env`. If you prefer MySQL, set `DB_ENGINE=mysql` in that file and update the connection fields before running migrations.
+> If you prefer MySQL, set `DB_ENGINE=mysql` in `.env` and update the connection fields before running migrations.
 
 **Local dependencies**
 
