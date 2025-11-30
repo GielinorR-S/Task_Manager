@@ -53,7 +53,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DB_ENGINE = os.getenv('DB_ENGINE', 'mysql')
+DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite')
 
 if DB_ENGINE == 'sqlite':
     DATABASES = {

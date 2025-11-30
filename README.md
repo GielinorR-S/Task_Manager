@@ -13,6 +13,7 @@ python -m venv .venv
 pip install -r backend/requirements.txt
 cd backend
 python manage.py migrate
+python manage.py createsuperuser  # create your login for /api/token/
 python manage.py runserver 8000
 ```
 
@@ -24,6 +25,6 @@ npm install
 npm run dev
 ```
 
-Database: Configure MySQL (XAMPP) credentials in `backend/.env` or copy `.env.example` and edit values.
+Database: The default `.env` uses SQLite so you can run locally without MySQL. To use MySQL/MariaDB instead, set `DB_ENGINE=mysql` in `.env` and provide your credentials.
 
 Repository: https://github.com/GielinorR-S/Task_Manager.git
