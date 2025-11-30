@@ -4,11 +4,18 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR.parent / '.env')
+
+# Prefer a backend-local .env (created from backend/.env.example); fall back to
+# a repo-root .env for compatibility without overriding backend-specific
+# values.
+load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR.parent / '.env', override=False)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'replace-me')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+if 'testserver' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -53,7 +60,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DB_ENGINE = os.getenv('DB_ENGINE', 'mysql')
+DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite')
 
 if DB_ENGINE == 'sqlite':
     DATABASES = {
