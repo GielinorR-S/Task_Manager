@@ -44,6 +44,7 @@ export default function TaskForm() {
       completed,
       due_at: toISOFromLocal(dueAt),
     }
+
     try {
       if (params.id) {
         await api.put(`/tasks/${params.id}/`, payload)
@@ -60,75 +61,73 @@ export default function TaskForm() {
     <section>
       <div className="page-header">
         <div>
-          <p className="helper-text" style={{margin: 0}}>{params.id ? 'Update task details' : 'Create a task with title and description'}</p>
-          <h2 style={{margin: 0}}>{params.id ? 'Edit task' : 'New task'}</h2>
+          <p className="helper-text" style={{ margin: 0 }}>
+            {params.id ? 'Update task details' : 'Create a task with title and description'}
+          </p>
+          <h2 style={{ margin: 0 }}>{params.id ? 'Edit task' : 'New task'}</h2>
         </div>
       </div>
 
-      <form onSubmit={save} className="form-card">
-        <div className="form-group">
-          <label>Title</label>
-          <input value={title} onChange={e=>setTitle(e.target.value)} required placeholder="Write a clear task title" />
+      <form className="form" onSubmit={save}>
+        <div className="form-header">
+          <div>
+            <p className="eyebrow">Planner</p>
+            <h3>{params.id ? 'Edit task' : 'Create a new task'}</h3>
+            <p className="muted">
+              Set clear goals, describe the work, and schedule a due date & time.
+            </p>
+          </div>
+
+          <div className="form-actions">
+            <label className="checkbox">
+              <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} />
+              Completed
+            </label>
+
+            <button type="submit" className="button">
+              Save task
+            </button>
+          </div>
         </div>
-        <div className="form-group">
-          <label>Description</label>
-          <textarea value={description} onChange={e=>setDescription(e.target.value)} placeholder="Add context, notes, or requirements" />
-        </div>
-        <div className="form-group">
-          <label className="helper-text" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-            <input type="checkbox" checked={completed} onChange={e=>setCompleted(e.target.checked)} /> Mark as completed
+
+        <div className="field-grid">
+          <label className="field">
+            <span>Title</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="What needs to get done?"
+            />
+          </label>
+
+          <label className="field">
+            <span>Description</span>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add context, steps, or acceptance criteria."
+              rows={4}
+            />
+          </label>
+
+          <label className="field">
+            <span>Due date & time</span>
+            <input
+              type="datetime-local"
+              value={dueAt}
+              onChange={(e) => setDueAt(e.target.value)}
+              placeholder="Set when this should be done"
+            />
+            <p className="muted small">Optional—leave blank if this task doesn't have a deadline.</p>
           </label>
         </div>
-        <div className="form-actions">
+
+        <div className="form-actions" style={{ marginTop: '16px' }}>
           <Link to="/" className="ghost-btn">Cancel</Link>
           <button type="submit" className="primary-btn">Save task</button>
         </div>
       </form>
     </section>
-    <form className="form" onSubmit={save}>
-      <div className="form-header">
-        <div>
-          <p className="eyebrow">Planner</p>
-          <h3>{params.id ? 'Edit task' : 'Create a new task'}</h3>
-          <p className="muted">Set clear goals, describe the work, and schedule a due date & time.</p>
-        </div>
-        <div className="form-actions">
-          <label className="checkbox">
-            <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} /> Completed
-          </label>
-          <button type="submit" className="button">
-            Save task
-          </button>
-        </div>
-      </div>
-
-      <div className="field-grid">
-        <label className="field">
-          <span>Title</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="What needs to get done?" />
-        </label>
-
-        <label className="field">
-          <span>Description</span>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add context, steps, or acceptance criteria."
-            rows={4}
-          />
-        </label>
-
-        <label className="field">
-          <span>Due date & time</span>
-          <input
-            type="datetime-local"
-            value={dueAt}
-            onChange={(e) => setDueAt(e.target.value)}
-            placeholder="Set when this should be done"
-          />
-          <p className="muted small">Optional—leave blank if this task doesn&apos;t have a deadline.</p>
-        </label>
-      </div>
-    </form>
   )
 }
