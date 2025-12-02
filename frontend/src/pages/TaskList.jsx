@@ -75,6 +75,14 @@ const TaskCard = React.memo(({ task, onToggleComplete, onDelete }) => {
 })
 
 TaskCard.displayName = 'TaskCard'
+  if (completed) return { label: 'Completed', tone: 'success' }
+  if (dueDate < now) return { label: 'Overdue', tone: 'danger' }
+
+  const diffHours = Math.round((dueDate - now) / (1000 * 60 * 60))
+  if (diffHours <= 3) return { label: 'Due soon', tone: 'warning' }
+
+  return { label: 'Scheduled', tone: 'success' }
+}
 
 export default function TaskList() {
   const { tasks, fetchTasks, toggleComplete, deleteTask } = useTasks()
@@ -219,6 +227,62 @@ export default function TaskList() {
               onDelete={handleRemoveTask}
             />
           ))}
+          {filteredTasks.map((task) => {
+            const due = getDueDetails(task.due_at, task.completed)
+            const overdue = due.tone === 'danger'
+
+            return (
+              <article
+                key={task.id}
+                className={`task-card ${task.completed ? 'is-done' : ''} ${
+                  overdue ? 'is-overdue' : ''
+                }`}
+              >
+                <header className="task-card__header">
+                  <div className="task-meta">
+                    <div className="task-badges">
+                      <span className={`badge ${task.completed ? 'success' : 'info'}`}>
+                        {task.completed ? 'Completed' : 'Active'}
+                      </span>
+                      <span className={`badge tone-${due.tone}`}>{due.label}</span>
+                    </div>
+                    <h4>{task.title}</h4>
+                  </div>
+
+                  <div className="task-actions">
+                    <button className="ghost" onClick={() => toggleComplete(task)}>
+                      {task.completed ? 'Mark active' : 'Mark done'}
+                    </button>
+
+                    <Link className="ghost" to={`/tasks/${task.id}/edit`}>
+                      Edit
+                    </Link>
+
+                    <button className="ghost danger" onClick={() => removeTask(task.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </header>
+
+                <p className="muted">{task.description || 'No description provided.'}</p>
+
+                <dl className="timeline">
+                  <div>
+                    <dt>Due</dt>
+                    <dd>{formatDateTime(task.due_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>Created</dt>
+                    <dd>{formatDateTime(task.created_at)}</dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt>
+                    <dd>{formatDateTime(task.updated_at)}</dd>
+                  </div>
+                </dl>
+              </article>
+            )
+          })}
         </div>
       ) : (
         <div className="empty-state">
