@@ -34,6 +34,22 @@ import {
 } from './reasoningEngine'
 import { ConversationState, generateFollowUpQuestion } from './conversationState'
 import { taskService } from '../services/taskService'
+import {
+  handleCasualConversation,
+  isCasualGreeting,
+  addPersonality,
+  generateProactiveHelp,
+  PERSONALITY,
+} from './personalityLayer'
+import { generateCommandList, isCommandListRequest } from './commandList'
+import { generateSmartFallback, needsClarification } from './smartFallback'
+import {
+  generateEnrichmentFollowUp,
+  isEnrichmentResponse,
+  parseEnrichmentData,
+  generateEnrichmentQuestion,
+} from './taskEnrichment'
+import { smallTalkEngine, deepResponseEngine } from './conversationEngine'
 
 /**
  * Advanced Task Domain Engine Class
@@ -59,7 +75,7 @@ class TaskDomainEngine {
    */
   async processCommand(command) {
     if (!command || typeof command !== 'string') {
-      return "I didn't receive a valid command. Please try again."
+      return "I didn't receive a valid command. Please try again. 😊"
     }
     
     // Ensure tasks array exists
@@ -67,7 +83,26 @@ class TaskDomainEngine {
       this.tasks = []
     }
     
-    // Check for pending action first (multi-step conversation)
+    // Check for command list request first
+    if (isCommandListRequest(command)) {
+      return generateCommandList()
+    }
+    
+    // Small talk and deep responses are handled in AssistantPanel before reaching here
+    // This prevents fallback from interfering
+    
+    // Handle casual conversation (fallback)
+    const casualResponse = handleCasualConversation(command)
+    if (casualResponse) {
+      return casualResponse
+    }
+    
+    // Check for task enrichment first (after task creation)
+    if (this.conversationState && this.conversationState.hasPendingTaskEnrichment()) {
+      return await this.handleTaskEnrichment(command)
+    }
+    
+    // Check for pending action (multi-step conversation)
     if (this.conversationState && this.conversationState.hasPendingAction()) {
       return await this.handleFollowUp(command)
     }
@@ -136,6 +171,110 @@ class TaskDomainEngine {
   }
 
   /**
+   * Handle task enrichment (follow-up after task creation)
+   */
+  async handleTaskEnrichment(command) {
+    const enrichment = this.conversationState.getPendingTaskEnrichment()
+    if (!enrichment) return "I'm not sure what you're referring to."
+    
+    const lower = command.toLowerCase()
+    
+    // Check if user wants to skip/end enrichment
+    if (lower.match(/^(no|nope|skip|that's fine|that's good|done|finished|all set|that's all|no thanks|cancel)/)) {
+      this.conversationState.clearPendingTaskEnrichment()
+      return `Got it. "${enrichment.taskTitle}" is all set. Do you want to create another task, or is there anything else I can help with?`
+    }
+    
+    // Check if user wants to create another task
+    if (lower.match(/^(create|add|make|new|another task|yes create|yes add)/)) {
+      this.conversationState.clearPendingTaskEnrichment()
+      // Let it fall through to create handler
+      return await this.handleCreateAdvanced(command)
+    }
+    
+    // Parse enrichment data from response
+    const enrichmentData = parseEnrichmentData(command)
+    const hasData = Object.keys(enrichmentData).length > 0
+    
+    // Check for affirmative response
+    if (lower.match(/^(yes|yeah|yep|sure|ok|okay|add|set|do it|go ahead)/) && !hasData) {
+      // User said yes but didn't provide data - ask for specific field
+      const fieldsAsked = this.conversationState.enrichmentFieldsAsked
+      const nextQuestion = generateEnrichmentQuestion(enrichment.taskTitle, fieldsAsked)
+      if (nextQuestion) {
+        return `Sure! ${nextQuestion}`
+      }
+      return `Great! "${enrichment.taskTitle}" is all set. Do you want to create another task?`
+    }
+    
+    // If we have enrichment data, apply it
+    if (hasData) {
+      const context = this.context
+      const task = this.tasks.find(t => t.id === enrichment.taskId)
+      if (!task) {
+        this.conversationState.clearPendingTaskEnrichment()
+        return "I couldn't find that task. Let's start fresh."
+      }
+      
+      // Update task with enrichment data
+      const updatedTask = {
+        title: task.title,
+        description: enrichmentData.description !== undefined ? enrichmentData.description : task.description,
+        completed: task.completed,
+        due_at: enrichmentData.due_at || task.due_at,
+        priority: enrichmentData.priority || task.priority || 'medium',
+        category: enrichmentData.category || task.category || 'other',
+      }
+      
+      await context.updateTask(enrichment.taskId, updatedTask)
+      
+      // Build confirmation message
+      let confirmation = `Got it – I've updated "${enrichment.taskTitle}".`
+      if (enrichmentData.due_at) {
+        confirmation += ` Due date set to ${formatDate(enrichmentData.due_at)}.`
+      }
+      if (enrichmentData.description) {
+        confirmation += ` Description added.`
+      }
+      if (enrichmentData.priority) {
+        confirmation += ` Priority set to ${enrichmentData.priority}.`
+      }
+      if (enrichmentData.category) {
+        confirmation += ` Category set to ${enrichmentData.category}.`
+      }
+      
+      // Ask for next enrichment or wrap up
+      const fieldsAsked = this.conversationState.enrichmentFieldsAsked
+      if (enrichmentData.due_at) {
+        this.conversationState.markEnrichmentFieldAsked('dueDate')
+        this.conversationState.markEnrichmentFieldAsked('time')
+      }
+      if (enrichmentData.description) {
+        this.conversationState.markEnrichmentFieldAsked('description')
+      }
+      if (enrichmentData.priority) {
+        this.conversationState.markEnrichmentFieldAsked('priority')
+      }
+      if (enrichmentData.category) {
+        this.conversationState.markEnrichmentFieldAsked('category')
+      }
+      
+      const nextQuestion = generateEnrichmentQuestion(enrichment.taskTitle, this.conversationState.enrichmentFieldsAsked)
+      if (nextQuestion) {
+        confirmation += `\n\n${nextQuestion}`
+      } else {
+        confirmation += `\n\n"${enrichment.taskTitle}" is all set. Do you want to create another task?`
+        this.conversationState.clearPendingTaskEnrichment()
+      }
+      
+      return confirmation
+    }
+    
+    // If we get here, user response wasn't clear
+    return `I'm not sure what you'd like to add to "${enrichment.taskTitle}". You can say things like:\n• "Add description: [text]"\n• "Set due date to tomorrow"\n• "Set priority to high"\n• Or just say "that's fine" if you're done.`
+  }
+
+  /**
    * Handle follow-up in multi-step conversation
    */
   async handleFollowUp(command) {
@@ -161,23 +300,24 @@ class TaskDomainEngine {
         const task = await ctx.createTask(taskData)
         this.conversationState.clearPendingAction()
         
-        let response = `✓ Created task #${task.id}: "${task.title}"`
+        let response = `Perfect! ✨ I've created task #${task.id}: "${task.title}"`
         if (taskData.due_at) {
           response += `\nDue: ${formatDate(taskData.due_at)}`
         }
-        return response
+        response += `\n\n${generateProactiveHelp()}`
+        return addPersonality(response, { actionCompleted: true })
       } else {
-        return generateFollowUpQuestion('title', updatedContext)
+        return `Sure! 😊 ${generateFollowUpQuestion('title', updatedContext)}`
       }
     }
     
     // Clear if user says "cancel" or "nevermind"
-    if (command.toLowerCase().match(/(cancel|nevermind|forget it|skip)/)) {
+    if (command.toLowerCase().match(/(cancel|nevermind|forget it|skip|no thanks)/)) {
       this.conversationState.clearPendingAction()
-      return "Okay, I've cancelled that. What would you like to do instead?"
+      return "No problem! 😊 I've cancelled that. What would you like to do instead?"
     }
     
-    return "I'm still waiting for more information. " + generateFollowUpQuestion('title', context)
+    return `Sure! 😊 I'm still waiting for more information. ${generateFollowUpQuestion('title', context)}`
   }
 
   /**
@@ -193,9 +333,9 @@ class TaskDomainEngine {
       if (lower.match(/(create|add|make|new|remind|remember|need to)/)) {
         // Set pending action and ask for title
         this.conversationState.setPendingAction('create', info)
-        return generateFollowUpQuestion('title')
+        return `Sure thing! 😊 ${generateFollowUpQuestion('title')}`
       }
-      return "I need a task name to create a task. Try: 'Create a task called [name]' or just tell me what you need to do."
+      return `I'd love to help you create a task! What would you like to name it? You can say something like "Create a task called [name]" or just tell me what you need to do.`
     }
 
     const taskData = {
@@ -203,23 +343,36 @@ class TaskDomainEngine {
       description: info.description || '',
       completed: false,
       due_at: info.dueDate || null,
+      priority: info.priority || 'medium',
+      category: info.category || 'other',
     }
 
     const context = this.context
     const task = await context.createTask(taskData)
 
-    let response = `✓ **Created task #${task.id}:** "${task.title}"`
-    if (taskData.due_at) {
-      response += `\n📅 **Due:** ${formatDate(taskData.due_at)}`
-    }
-    if (info.priority) {
-      response += `\n⚡ **Priority:** ${info.priority}`
-    }
-    if (info.category) {
-      response += `\n📁 **Category:** ${info.category}`
+    // Check if task needs enrichment (missing fields)
+    const needsEnrichment = !taskData.due_at && !info.description && !info.priority && !info.category
+    
+    if (needsEnrichment) {
+      // Set up enrichment flow
+      this.conversationState.setPendingTaskEnrichment(task.id, task.title)
+      return generateEnrichmentFollowUp(task.title, this.conversationState.enrichmentFieldsAsked)
     }
     
-    return response
+    // Task has all details, just confirm
+    let response = `Perfect! ✨ I've created task #${task.id}: "${task.title}"`
+    if (taskData.due_at) {
+      response += `\n📅 Due: ${formatDate(taskData.due_at)}`
+    }
+    if (info.priority) {
+      response += `\n⚡ Priority: ${info.priority}`
+    }
+    if (info.category) {
+      response += `\n📁 Category: ${info.category}`
+    }
+    response += `\n\n${generateProactiveHelp()}`
+    
+    return addPersonality(response, { actionCompleted: true })
   }
 
   /**
@@ -245,7 +398,7 @@ class TaskDomainEngine {
           const deletePromises = toDelete.map(t => context.deleteTask(t.id))
           await Promise.all(deletePromises)
           
-          return `✓ Deleted ${toDelete.length} task(s), keeping "${exceptTask.title}".`
+          return addPersonality(`Done. I've deleted ${toDelete.length} task(s), keeping "${exceptTask.title}".`, { actionCompleted: true })
         }
       }
     }
@@ -262,7 +415,7 @@ class TaskDomainEngine {
       const deletePromises = overdue.map(t => context.deleteTask(t.id))
       await Promise.all(deletePromises)
       
-      return `✓ Deleted ${overdue.length} overdue task(s).`
+          return addPersonality(`Done. I've deleted ${overdue.length} overdue task(s).`, { actionCompleted: true })
     }
     
     // Standard delete
@@ -275,13 +428,13 @@ class TaskDomainEngine {
     const task = findTaskAdvanced(this.tasks, taskName)
     if (!task) {
       const suggestions = this.tasks.slice(0, 5).map(t => `#${t.id}: ${t.title}`).join(', ')
-      return `I couldn't find a task matching "${taskName}". Here are your tasks:\n${suggestions}`
+      return `I couldn't find a task matching "${taskName}". 😊 Here are your tasks:\n${suggestions}\n\nWhich one did you want to delete?`
     }
 
     const context = this.context
     await context.deleteTask(task.id)
 
-    return `✓ Deleted task #${task.id}: "${task.title}"`
+    return addPersonality(`Done! ✅ I've deleted task #${task.id}: "${task.title}". All cleaned up!`, { actionCompleted: true })
   }
 
   /**
@@ -335,7 +488,7 @@ class TaskDomainEngine {
 
     // Check for specific update patterns
     if (lower.includes('reschedule') || lower.includes('move to')) {
-      const newDate = parseDateTime(command) || parseDateFromText(command)
+      const newDate = parseDateTime(command)
       if (newDate) {
         updates.due_at = newDate
         responseParts.push(`📅 Rescheduled to: ${formatDate(newDate)}`)
@@ -364,7 +517,7 @@ class TaskDomainEngine {
     const context = this.context
     await context.updateTask(task.id, taskData)
 
-    return `✓ **Updated task #${task.id}:** "${taskData.title}"\n${responseParts.join('\n')}`
+    return addPersonality(`Perfect! ✨ I've updated task #${task.id}: "${taskData.title}"\n${responseParts.join('\n')}`, { actionCompleted: true })
   }
 
   /**
@@ -395,23 +548,23 @@ class TaskDomainEngine {
       }
       
       const suggestions = this.tasks.filter(t => !t.completed).slice(0, 5).map(t => `#${t.id}: ${t.title}`).join(', ')
-      return `I need to know which task to complete. Here are your active tasks:\n${suggestions}`
+      return `I'd be happy to help you complete a task! 😊 Which one would you like to mark as done? Here are your active tasks:\n${suggestions}`
     }
 
     const task = findTaskAdvanced(this.tasks, taskName)
     if (!task) {
       const suggestions = this.tasks.filter(t => !t.completed).slice(0, 5).map(t => `#${t.id}: ${t.title}`).join(', ')
-      return `I couldn't find a task matching "${taskName}". Here are your active tasks:\n${suggestions}`
+      return `I couldn't find a task matching "${taskName}". 😊 Here are your active tasks:\n${suggestions}\n\nWhich one did you mean?`
     }
 
     if (task.completed) {
-      return `Task #${task.id} "${task.title}" is already completed. 🎉`
+      return `Great news! 🎉 Task #${task.id} "${task.title}" is already completed. You're doing awesome!`
     }
 
     const context = this.context
     await context.toggleComplete(task)
 
-    return `✓ **Completed task #${task.id}:** "${task.title}"\n\nGreat work! 🎉`
+    return addPersonality(`Excellent! 🎉 I've marked task #${task.id} "${task.title}" as complete. Great work!`, { actionCompleted: true })
   }
 
   /**
@@ -434,26 +587,23 @@ class TaskDomainEngine {
       if (taskName) {
         const task = findTaskAdvanced(this.tasks, taskName)
         if (!task) {
-          return `I couldn't find a task matching "${taskName}".`
+          return `I couldn't find a task matching "${taskName}". Could you try again with the task name or ID?`
         }
 
-        let info = `📋 **Task #${task.id}: ${task.title}**\n\n`
-        info += `**Status:** ${task.completed ? '✅ Completed' : '○ Active'}\n`
-        if (task.description) {
-          info += `**Description:** ${task.description}\n`
-        }
-        if (task.due_at) {
-          info += `**Due:** ${formatDate(task.due_at)}\n`
-          info += `\n${explainTaskUrgency(task)}\n`
-        } else {
-          info += `**Due:** No due date set\n`
-        }
-        info += `**Created:** ${formatDate(task.created_at)}\n`
-        info += `**Updated:** ${formatDate(task.updated_at)}\n`
+        let info = `Here's what I know about "${task.title}":\n\n`
+        info += `• **Due:** ${task.due_at ? formatDate(task.due_at) : 'No due date set'}\n`
+        info += `• **Priority:** ${task.priority || 'Medium'}\n`
+        info += `• **Description:** ${task.description || 'None yet'}\n`
+        info += `• **Status:** ${task.completed ? '✅ Completed' : '○ Active'}\n`
+        info += `• **Created:** ${formatDate(task.created_at)}\n`
         
-        // Add suggestions
+        if (task.due_at && !task.completed) {
+          info += `\n${explainTaskUrgency(task)}\n`
+        }
+        
+        // Add actionable suggestions
         if (!task.completed) {
-          info += `\n${suggestTaskImprovements(task)}`
+          info += `\nDo you want to change the date, time, description, or priority?`
         }
         
         return info
@@ -464,13 +614,14 @@ class TaskDomainEngine {
     if (lower.includes('overdue')) {
       const overdue = taskService.filterByStatus(this.tasks, 'overdue')
       if (overdue.length === 0) {
-        return "✅ **Great news!** You don't have any overdue tasks. Keep up the excellent work! 🎉"
+        return addPersonality("Great news! 🎉 You don't have any overdue tasks. You're doing amazing! Keep up the excellent work!", { actionCompleted: false })
       }
-      let response = `⚠️ **You have ${overdue.length} overdue task(s):**\n\n`
+      let response = `I found ${overdue.length} overdue task(s) that need your attention:\n\n`
       overdue.forEach(t => {
         response += `• Task #${t.id}: "${t.title}"\n`
         response += `  ${explainTaskUrgency(t)}\n\n`
       })
+      response += `💡 **Tip:** Try tackling these one at a time. You've got this! 💪`
       return response
     }
 
@@ -478,13 +629,14 @@ class TaskDomainEngine {
     if (lower.includes('due today') || lower.includes("what's due today") || lower.includes('today')) {
       const today = taskService.filterByDueDate(this.tasks, 'today')
       if (today.length === 0) {
-        return "📅 You don't have any tasks due today. Great opportunity to work ahead or take a break!"
+        return "Great news! 📅 You don't have any tasks due today. Perfect opportunity to work ahead, plan for tomorrow, or take a well-deserved break! 😊"
       }
-      let response = `📅 **Today's tasks (${today.length}):**\n\n`
+      let response = `Here's what's on your plate today (${today.length} task${today.length !== 1 ? 's' : ''}):\n\n`
       today.forEach(t => {
         response += `• Task #${t.id}: "${t.title}"\n`
         response += `  Due: ${formatDate(t.due_at)}\n\n`
       })
+      response += `You've got this! 💪`
       return response
     }
 
@@ -529,18 +681,20 @@ class TaskDomainEngine {
         return suggestion
       }
       
-      let response = `💡 **RECOMMENDATION**\n\n`
+      let response = `Here's my recommendation for you: 💡\n\n`
       response += `${suggestion.reasoning}\n\n`
       response += `${suggestion.recommendation}\n\n`
       response += `**Task:** #${suggestion.task.id} - "${suggestion.task.title}"`
       if (suggestion.task.due_at) {
         response += `\n**Due:** ${formatDate(suggestion.task.due_at)}`
       }
+      response += `\n\nGood luck! You've got this! 🚀`
       return response
     }
 
-    // Default: show intelligent summary
-    return generateIntelligentSummary(this.tasks)
+    // Default: show intelligent summary with friendly tone
+    const summary = generateIntelligentSummary(this.tasks)
+    return `${summary}\n\n${generateProactiveHelp()}`
   }
 
   /**
@@ -667,10 +821,11 @@ class TaskDomainEngine {
       return "You don't have any tasks to delete."
     }
 
+    const taskCount = this.tasks.length
     const context = this.context
     await context.deleteAllTasks()
 
-    return `✓ Deleted all ${this.tasks.length} task(s).`
+    return addPersonality(`Done. I've deleted all ${taskCount} task(s). Your list is now empty.`, { actionCompleted: true })
   }
 
   /**
@@ -682,10 +837,12 @@ class TaskDomainEngine {
       return "You don't have any completed tasks to delete."
     }
 
+    const completedCount = completed.length
     const context = this.context
-    const count = await context.deleteCompletedTasks()
+    await context.deleteCompletedTasks()
+    const remaining = this.tasks.filter(t => !t.completed).length
 
-    return `✓ Deleted ${count} completed task(s).`
+    return addPersonality(`Done. I've deleted ${completedCount} completed task(s). You now have ${remaining} active task(s) remaining.`, { actionCompleted: true })
   }
 
   /**
@@ -694,13 +851,14 @@ class TaskDomainEngine {
   async handleCompleteAll(command) {
     const incomplete = this.tasks.filter(t => !t.completed)
     if (incomplete.length === 0) {
-      return "All tasks are already completed! 🎉"
+      return "All tasks are already completed! Great work."
     }
 
+    const incompleteCount = incomplete.length
     const context = this.context
-    const count = await context.completeAllTasks()
+    await context.completeAllTasks()
 
-    return `✓ Marked ${count} task(s) as complete. Excellent work! 🎉`
+    return addPersonality(`Done. I've marked ${incompleteCount} task(s) as complete. Excellent work!`, { actionCompleted: true })
   }
 
   /**
@@ -733,19 +891,20 @@ class TaskDomainEngine {
   }
 
   /**
-   * Advanced UNKNOWN handler - try to be helpful
+   * Advanced UNKNOWN handler - smart context-aware fallback
    */
   handleUnknownAdvanced(command) {
     const lower = command.toLowerCase()
     
-    // Check for greetings
+    // Check for greetings (fallback if not caught earlier)
     if (lower.match(/^(hi|hello|hey|greetings|good morning|good afternoon|good evening)/)) {
-      return `Hi! 👋 I'm here to help you manage your tasks. What would you like to do?\n\nYou can:\n• Create tasks\n• View your tasks\n• Complete tasks\n• Get recommendations\n• Plan your day`
+      return `Hi there! 👋 I'm ${PERSONALITY.name}, your task assistant. I can help you manage tasks, plan your day, and stay organized. What would you like to do?`
     }
     
-    // Check if it might be a task creation attempt
-    if (lower.match(/(need to|have to|must|should|want to)/)) {
-      return `It sounds like you might want to create a task. Try saying:\n• "I need to [do something]"\n• "Create a task to [do something]"\n• "Remind me to [do something]"`
+    // Check if it needs clarification first
+    if (needsClarification(command, this.conversationState?.getLastIntent())) {
+      const fallback = generateSmartFallback(command, this.conversationState?.getLastIntent(), this.tasks, false)
+      if (fallback) return fallback
     }
     
     // Check for conflicts
@@ -754,8 +913,11 @@ class TaskDomainEngine {
       return conflicts
     }
     
-    // Default helpful response
-    return `I'm not entirely sure what you'd like to do. Here's what I can help with:\n\n**Task Management:**\n• Create, update, delete, complete tasks\n• Filter and search tasks\n• View task details\n\n**Planning & Analysis:**\n• Summarize your workload\n• Suggest next tasks\n• Plan your day or next 3 hours\n• Detect scheduling conflicts\n\n**Questions:**\n• "What tasks are due today?"\n• "How many tasks do I have?"\n• "When is [task] due?"\n• "Why is [task] urgent?"\n\nTry rephrasing your request, or ask me a specific question!`
+    // Use smart fallback (only if appropriate)
+    const fallback = generateSmartFallback(command, this.conversationState?.getLastIntent(), this.tasks, false)
+    if (fallback) return fallback
+    
+    return addPersonality(`I'm not entirely sure how to help with that, but I'm learning! 🤔 Could you try rephrasing, or ask me "What can you do?" for a list of commands?`)
   }
 }
 

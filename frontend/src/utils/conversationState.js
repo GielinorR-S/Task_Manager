@@ -8,6 +8,8 @@ export class ConversationState {
     this.pendingAction = null
     this.context = {}
     this.lastIntent = null
+    this.pendingTaskEnrichment = null // Stores { taskId, taskTitle } after task creation
+    this.enrichmentFieldsAsked = [] // Track which fields we've already asked about
   }
 
   /**
@@ -83,12 +85,60 @@ export class ConversationState {
   }
 
   /**
+   * Set pending task enrichment (after task creation)
+   */
+  setPendingTaskEnrichment(taskId, taskTitle) {
+    this.pendingTaskEnrichment = { taskId, taskTitle }
+    this.enrichmentFieldsAsked = []
+  }
+
+  /**
+   * Clear pending task enrichment
+   */
+  clearPendingTaskEnrichment() {
+    this.pendingTaskEnrichment = null
+    this.enrichmentFieldsAsked = []
+  }
+
+  /**
+   * Check if there's pending task enrichment
+   */
+  hasPendingTaskEnrichment() {
+    return this.pendingTaskEnrichment !== null
+  }
+
+  /**
+   * Get pending task enrichment
+   */
+  getPendingTaskEnrichment() {
+    return this.pendingTaskEnrichment
+  }
+
+  /**
+   * Mark enrichment field as asked
+   */
+  markEnrichmentFieldAsked(field) {
+    if (!this.enrichmentFieldsAsked.includes(field)) {
+      this.enrichmentFieldsAsked.push(field)
+    }
+  }
+
+  /**
+   * Check if enrichment field was already asked
+   */
+  wasEnrichmentFieldAsked(field) {
+    return this.enrichmentFieldsAsked.includes(field)
+  }
+
+  /**
    * Reset all state
    */
   reset() {
     this.pendingAction = null
     this.context = {}
     this.lastIntent = null
+    this.pendingTaskEnrichment = null
+    this.enrichmentFieldsAsked = []
   }
 }
 
@@ -97,8 +147,8 @@ export class ConversationState {
  */
 export function generateFollowUpQuestion(missingField, context = {}) {
   const questions = {
-    title: "What would you like to name this task?",
-    dueDate: "When is this task due?",
+    title: "What would you like to name this task? 😊",
+    dueDate: "When would you like this task to be due?",
     time: "What time should this be scheduled?",
     priority: "What priority should this task have? (high, medium, low)",
     category: "Which category should this belong to? (work, personal, shopping, health, finance, education)",
@@ -110,7 +160,7 @@ export function generateFollowUpQuestion(missingField, context = {}) {
   
   // Add context-specific hints
   if (missingField === 'dueDate' && context.title) {
-    return `When is "${context.title}" due?`
+    return `When is "${context.title}" due? You can say something like "tomorrow" or "next week".`
   }
   
   if (missingField === 'taskId' && context.suggestions) {
