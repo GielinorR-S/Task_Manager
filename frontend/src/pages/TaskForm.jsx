@@ -95,6 +95,10 @@ export default function TaskForm() {
             {params.id ? 'Update task details' : 'Create a task with title and description'}
           </p>
           <h2 style={headerStyle}>{params.id ? 'Edit task' : 'New task'}</h2>
+          <p className="helper-text" style={{ margin: 0 }}>
+            {params.id ? 'Update task details' : 'Create a task with title and description'}
+          </p>
+          <h2 style={{ margin: 0 }}>{params.id ? 'Edit task' : 'New task'}</h2>
         </div>
       </div>
 
@@ -111,6 +115,7 @@ export default function TaskForm() {
           <div className="form-actions">
             <label className="checkbox">
               <input type="checkbox" checked={completed} onChange={handleCompletedChange} />
+              <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} />
               Completed
             </label>
 
@@ -126,6 +131,7 @@ export default function TaskForm() {
             <input
               value={title}
               onChange={handleTitleChange}
+              onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="What needs to get done?"
             />
@@ -136,6 +142,7 @@ export default function TaskForm() {
             <textarea
               value={description}
               onChange={handleDescriptionChange}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Add context, steps, or acceptance criteria."
               rows={4}
             />
@@ -147,6 +154,7 @@ export default function TaskForm() {
               type="datetime-local"
               value={dueAt}
               onChange={handleDueAtChange}
+              onChange={(e) => setDueAt(e.target.value)}
               placeholder="Set when this should be done"
             />
             <p className="muted small">Optional—leave blank if this task doesn't have a deadline.</p>
@@ -154,6 +162,7 @@ export default function TaskForm() {
         </div>
 
         <div className="form-actions" style={formActionsStyle}>
+        <div className="form-actions" style={{ marginTop: '16px' }}>
           <Link to="/" className="ghost-btn">Cancel</Link>
           <button type="submit" className="primary-btn">Save task</button>
         </div>

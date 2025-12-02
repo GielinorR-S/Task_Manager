@@ -37,6 +37,8 @@ export default function Login() {
       setError(message)
     } finally {
       setIsSubmitting(false)
+      const message = serverData ? JSON.stringify(serverData) : err.message || 'Login failed'
+      alert('Login failed: ' + message)
     }
   }, [username, password, navigate])
 
@@ -48,6 +50,10 @@ export default function Login() {
             Sign in to access your tasks
           </p>
           <h2 style={headerStyle}>Login</h2>
+          <p className="helper-text" style={{ margin: 0 }}>
+            Sign in to request a JWT access token
+          </p>
+          <h2 style={{ margin: 0 }}>Login</h2>
         </div>
       </div>
 
@@ -101,6 +107,32 @@ export default function Login() {
           <p className="muted">
             <Link to="/forgot-password">Forgot password?</Link> | <Link to="/signup">Create account</Link>
           </p>
+          <button type="submit" className="button">
+            Login
+          </button>
+        </div>
+
+        <div className="field-grid">
+          <label className="field">
+            <span>Username</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              placeholder="Your username"
+            />
+          </label>
+
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+            />
+          </label>
         </div>
       </form>
     </section>
