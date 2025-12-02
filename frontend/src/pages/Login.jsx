@@ -1,43 +1,108 @@
-import React, {useState} from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import api from '../api'
 import { saveTokens } from '../auth'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
-export default function Login(){
+export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const navigate = useNavigate()
 
-  async function submit(e){
+  const headerStyle = useMemo(() => ({ margin: 0 }), [])
+
+  const handleUsernameChange = useCallback((e) => {
+    setUsername(e.target.value)
+    setError('')
+  }, [])
+
+  const handlePasswordChange = useCallback((e) => {
+    setPassword(e.target.value)
+    setError('')
+  }, [])
+
+  const submit = useCallback(async (e) => {
     e.preventDefault()
-    try{
-      const res = await api.post('/token/', {username, password})
-      console.log('Login response:', res)
+    setIsSubmitting(true)
+    setError('')
+
+    try {
+      const res = await api.post('/token/', { username, password })
       saveTokens(res.data)
-      alert('Login successful!')
       navigate('/')
-    }catch(err){
-      console.error('Login error (raw):', err)
-      // Show useful server response details when available
+    } catch (err) {
       const serverData = err?.response?.data
-      console.error('Login error (response data):', serverData)
-      const message = serverData ? JSON.stringify(serverData) : (err.message || 'Login failed')
-      // show a readable message to the user and also log details to console
-      alert('Login failed: ' + message)
+      const message = serverData?.detail || serverData?.error || err.message || 'Login failed'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
     }
-  }
+  }, [username, password, navigate])
 
   return (
-    <form onSubmit={submit}>
-      <div>
-        <label>Username</label>
-        <input value={username} onChange={e=>setUsername(e.target.value)} required />
+    <section>
+      <div className="page-header">
+        <div>
+          <p className="helper-text" style={headerStyle}>
+            Sign in to access your tasks
+          </p>
+          <h2 style={headerStyle}>Login</h2>
+        </div>
       </div>
-      <div>
-        <label>Password</label>
-        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
-      </div>
-      <button type="submit">Login</button>
-    </form>
+
+      <form className="form" onSubmit={submit}>
+        <div className="form-header">
+          <div>
+            <p className="eyebrow">Welcome back</p>
+            <h3>Sign in to continue</h3>
+            <p className="muted">
+              Enter your credentials to access tasks and schedules.
+            </p>
+          </div>
+
+          <button type="submit" className="button" disabled={isSubmitting}>
+            {isSubmitting ? 'Logging in...' : 'Login'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="error-message" style={{ marginBottom: '16px', padding: '12px', background: 'var(--danger)', color: 'white', borderRadius: '8px' }}>
+            {error}
+          </div>
+        )}
+
+        <div className="field-grid">
+          <label className="field">
+            <span>Username</span>
+            <input
+              value={username}
+              onChange={handleUsernameChange}
+              required
+              placeholder="Your username"
+              disabled={isSubmitting}
+            />
+          </label>
+
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={handlePasswordChange}
+              required
+              placeholder="••••••••"
+              disabled={isSubmitting}
+            />
+          </label>
+        </div>
+
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <p className="muted">
+            <Link to="/forgot-password">Forgot password?</Link> | <Link to="/signup">Create account</Link>
+          </p>
+        </div>
+      </form>
+    </section>
   )
 }
