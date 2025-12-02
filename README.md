@@ -1,110 +1,314 @@
-# Django + React Task Manager
+# Task Manager with AI Assistant (Aurora)
 
-A full-stack task manager with a Django REST API backend and a React (Vite) frontend. It supports authentication, CRUD for tasks, and optional scheduling with due date/time fields surfaced in the UI.
+A full-stack task management application built with Django REST Framework and React, featuring an AI-powered conversational assistant for natural language task management.
 
-> **GitHub note:** Outbound pushes are blocked from this cloud environment. To publish the current `work` branch to your GitHub `Task-Manager-V2` branch, run the push steps locally with your own credentials. See `PUSHING.md` for the exact commands and safety checks.
+## ✨ Features
 
-## Features
-- JWT-secured REST API for creating, updating, and deleting tasks.
-- Optional due date/time on tasks with ordering by completion state and schedule.
-- Modern React dashboard showing stats, filters, and timeline details for each task.
-- Token-aware API client with automatic refresh handling on 401 responses.
-- **AI-powered task assistant** (Aurora) with natural language understanding via OpenAI integration.
+- **JWT-secured REST API** for creating, updating, and deleting tasks
+- **AI-powered assistant (Aurora)** with natural language understanding via OpenAI integration
+- **Natural language task creation** - "Create a task to pay rent tomorrow at 5pm"
+- **Multi-step task creation flow** with intelligent follow-up questions
+- **Persistent chat history** with clear/reset functionality
+- **Floating, draggable assistant UI** with responsive design
+- **Smart task management** - bulk operations, filtering, prioritization
+- **User authentication** - secure login, registration, and password reset
+- **Due date/time tracking** with overdue detection and notifications
+- **Modern React dashboard** with stats, filters, and timeline details
 
-## Quick start
+## 🚀 Quick Start
 
-### Backend
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python manage.py migrate
-python manage.py createsuperuser  # create your login for /api/token/
-python manage.py runserver 8000
-DB_ENGINE=sqlite python manage.py runserver 8000
-```
+### Prerequisites
 
-> If you prefer MySQL, set `DB_ENGINE=mysql` in `.env` and update the connection fields before running migrations.
+- Python 3.8+ 
+- Node.js 16+ and npm
+- (Optional) OpenAI API key for AI assistant features
 
-**Local dependencies**
+### Backend Setup
 
-- SQLite requires no extra packages; it works out of the box with the provided defaults.
-- For MySQL/MariaDB you may need a client library on your machine (for example `libmysqlclient-dev` on Debian/Ubuntu or the MariaDB client tools) before running `pip install -r requirements.txt` so that `mysqlclient` can compile.
+1. **Navigate to backend directory:**
+   ```bash
+   cd backend
+   ```
 
-**MariaDB quickstart (optional)**
+2. **Create and activate virtual environment:**
+   ```bash
+   python -m venv .venv
+   
+   # On Windows:
+   .venv\Scripts\activate
+   
+   # On macOS/Linux:
+   source .venv/bin/activate
+   ```
 
-If you want to validate against MariaDB locally, a lightweight Docker Compose file is included:
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-docker compose -f docker-compose.mariadb.yml up -d
+4. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` and configure:
+   - Database settings (SQLite by default, no setup needed)
+   - CORS origins (default: `http://localhost:5173`)
+   - (Optional) OpenAI API key for AI features
 
-# then run migrations against it from the backend directory
-DB_ENGINE=mysql DB_NAME=taskmanager DB_USER=taskuser DB_PASSWORD=taskpass DB_HOST=127.0.0.1 DB_PORT=3306 \
-  python manage.py migrate
-```
+5. **Run migrations:**
+   ```bash
+   python manage.py migrate
+   ```
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
+6. **Create superuser (for admin access):**
+   ```bash
+   python manage.py createsuperuser
+   ```
 
-## Environment
-- `.env.example` in `backend/` contains defaults for local development (SQLite by default) and CORS origins for the Vite dev server.
-- Update `CORS_ALLOWED_ORIGINS` if you serve the frontend from a different host/port.
+7. **Start the development server:**
+   ```bash
+   python manage.py runserver 8000
+   ```
 
-## AI Assistant Setup (Optional)
+   The API will be available at `http://localhost:8000`
 
-The task assistant (Aurora) can use OpenAI for natural language understanding. Without an API key, it falls back to regex-based pattern matching.
+### Frontend Setup
 
-### Setup OpenAI Integration
+1. **Navigate to frontend directory:**
+   ```bash
+   cd frontend
+   ```
 
-1. Get an API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Add to your `.env` file in the `backend/` directory:
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+
+   The app will be available at `http://localhost:5173`
+
+### First Time Setup
+
+1. Open `http://localhost:5173` in your browser
+2. Click "Login" and create a new account
+3. Start creating tasks or chat with Aurora, the AI assistant!
+
+## 🤖 AI Assistant Setup (Optional)
+
+The AI assistant (Aurora) provides natural language task management. It works without an API key using pattern matching, but for the best experience, set up OpenAI integration:
+
+1. **Get an OpenAI API key:**
+   - Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+   - Create an account and generate an API key
+
+2. **Add to backend `.env` file:**
    ```bash
    OPENAI_API_KEY=your-api-key-here
    OPENAI_MODEL=gpt-4o-mini  # Optional: defaults to gpt-4o-mini
    ```
-3. Restart your Django server
 
-The assistant will automatically use AI when the API key is configured, providing:
-- Natural language task creation with date/time parsing
-- Context-aware responses about your tasks
-- Intelligent task updates and management
-- Conversational help and suggestions
+3. **Restart the Django server**
 
-Without the API key, the assistant still works using pattern matching for basic commands.
+### AI Assistant Features
 
-Repository: https://github.com/GielinorR-S/Task_Manager.git
+With OpenAI integration, Aurora can:
+- Understand natural language commands ("Create a task to call mom tomorrow at 3pm")
+- Ask intelligent follow-up questions for task details
+- Provide context-aware responses about your tasks
+- Help with planning and prioritization
+- Engage in friendly conversation
 
-### Using the provided Task-Manager-V2 branch
+Without the API key, Aurora still works using pattern matching for basic commands.
 
-If you want the changes from this environment to live on `https://github.com/GielinorR-S/Task_Manager` under the `Task-Manager-V2` branch, add that repo as a remote and push with your GitHub credentials:
+## 📁 Project Structure
 
-```bash
-# add the remote if you haven't already
-git remote add upstream https://github.com/GielinorR-S/Task_Manager.git
-
-# push the current branch (named "work" here) to Task-Manager-V2 on GitHub
-git push upstream work:Task-Manager-V2
+```
+Task_Manager/
+├── backend/              # Django REST API
+│   ├── tasks/           # Task models and views
+│   ├── accounts/        # User authentication
+│   ├── manage.py
+│   └── requirements.txt
+├── frontend/            # React application
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── contexts/    # React context providers
+│   │   ├── pages/       # Page components
+│   │   ├── utils/       # Utility functions
+│   │   └── services/    # API services
+│   └── package.json
+└── README.md
 ```
 
-You can run those commands from this repository once you provide valid GitHub access. This keeps the original `main` untouched while letting you fetch or clone the updated branch on any machine. Because SQLite remains the default database, you do not need any extra client libraries when you pull it down; just follow the quick-start steps above. See `PUSHING.md` for more safety checks so you do not overwrite the original branch when you push.
+## 🔧 Configuration
 
-## Forking/pushing your own backup
+### Database Options
 
-The repository in this environment is not connected to GitHub for pushes. To keep the original upstream untouched while testing locally, fork the repo on GitHub and add your fork as a remote:
+**SQLite (Default - No setup required)**
+- Works out of the box
+- Perfect for development and small deployments
 
+**MySQL/MariaDB (Optional)**
+1. Install MySQL client libraries:
+   ```bash
+   # Debian/Ubuntu
+   sudo apt-get install libmysqlclient-dev
+   
+   # macOS
+   brew install mysql-client
+   ```
+
+2. Update `.env`:
+   ```bash
+   DB_ENGINE=mysql
+   DB_NAME=taskmanager
+   DB_USER=your_user
+   DB_PASSWORD=your_password
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   ```
+
+3. Run migrations:
+   ```bash
+   python manage.py migrate
+   ```
+
+### Docker MariaDB (Optional)
+
+For local MariaDB testing:
 ```bash
-# create your fork on GitHub first, then in this repo:
-git remote add fork git@github.com:<your-username>/Task_Manager.git
-git push fork work
+docker compose -f docker-compose.mariadb.yml up -d
 
-# or push a dedicated backup branch if you prefer
-git push fork work:backup
+# Run migrations
+DB_ENGINE=mysql DB_NAME=taskmanager DB_USER=taskuser DB_PASSWORD=taskpass DB_HOST=127.0.0.1 DB_PORT=3306 \
+  python manage.py migrate
 ```
 
-After cloning your fork on another machine, install dependencies and run the same setup commands from the quick start sections above. If you stick with the default SQLite settings you do not need any extra database client libraries. Only switch to MySQL/MariaDB if you want to test against them, and install the relevant client libraries before installing Python dependencies.
+## 🎯 Usage
+
+### Creating Tasks
+
+**Via Form:**
+- Click "New Task" in the navigation
+- Fill in title, description, and optional due date/time
+- Click "Save task"
+
+**Via AI Assistant:**
+- Click the cloud icon (☁️) in the bottom-right
+- Say: "Create a task to buy groceries tomorrow at 2pm"
+- Aurora will guide you through the process
+
+### Managing Tasks
+
+- **View all tasks:** Click "Tasks" in navigation
+- **Filter tasks:** Use the filter buttons (All, Active, Completed)
+- **Edit task:** Click "Edit" on any task card
+- **Complete task:** Click "Mark done" or use the checkbox
+- **Delete task:** Click "Delete" on any task card
+
+### AI Assistant Commands
+
+Try these with Aurora:
+- "Create a task called..."
+- "What tasks are due today?"
+- "Delete all tasks" (with confirmation)
+- "Clear chat" (start fresh conversation)
+- "What can you do?" (see all capabilities)
+- "Plan my day"
+- "I'm stressed" (get help prioritizing)
+
+## 🛠️ Development
+
+### Building for Production
+
+**Frontend:**
+```bash
+cd frontend
+npm run build
+```
+
+**Backend:**
+```bash
+cd backend
+python manage.py collectstatic  # If using static files
+```
+
+### Running Tests
+
+```bash
+# Backend tests
+cd backend
+python manage.py test
+
+# Frontend tests (if configured)
+cd frontend
+npm test
+```
+
+## 📝 API Endpoints
+
+- `POST /api/register/` - User registration
+- `POST /api/token/` - Get JWT token (login)
+- `POST /api/token/refresh/` - Refresh JWT token
+- `GET /api/tasks/` - List all tasks (authenticated)
+- `POST /api/tasks/` - Create new task
+- `GET /api/tasks/{id}/` - Get task details
+- `PUT /api/tasks/{id}/` - Update task
+- `DELETE /api/tasks/{id}/` - Delete task
+- `POST /api/tasks/delete-all/` - Delete all tasks (bulk)
+
+## 🔒 Security
+
+- JWT-based authentication
+- Password hashing with Django's PBKDF2
+- CORS protection
+- SQL injection protection (Django ORM)
+- XSS protection (React)
+
+## 📦 Dependencies
+
+**Backend:**
+- Django 4.2+
+- Django REST Framework
+- djangorestframework-simplejwt
+- django-cors-headers
+- openai (optional, for AI features)
+
+**Frontend:**
+- React 18+
+- React Router
+- Vite
+- Axios
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is open source and available for personal and educational use.
+
+## 🙏 Acknowledgments
+
+- Built with Django and React
+- AI features powered by OpenAI
+- UI inspired by modern productivity tools
+
+## 📞 Support
+
+For issues, questions, or contributions, please open an issue on GitHub.
+
+---
+
+**Repository:** https://github.com/GielinorR-S/Task_Manager
+
+**Happy task managing! 🎉**

@@ -75,14 +75,6 @@ const TaskCard = React.memo(({ task, onToggleComplete, onDelete }) => {
 })
 
 TaskCard.displayName = 'TaskCard'
-  if (completed) return { label: 'Completed', tone: 'success' }
-  if (dueDate < now) return { label: 'Overdue', tone: 'danger' }
-
-  const diffHours = Math.round((dueDate - now) / (1000 * 60 * 60))
-  if (diffHours <= 3) return { label: 'Due soon', tone: 'warning' }
-
-  return { label: 'Scheduled', tone: 'success' }
-}
 
 export default function TaskList() {
   const { tasks, fetchTasks, toggleComplete, deleteTask } = useTasks()
