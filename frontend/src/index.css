@@ -25,6 +25,125 @@
   --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.75);
 }
 
+
+/* Light theme structural tweaks */
+
+
+
+
+
+
+
+
+
+/* Global reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.20), transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(129, 140, 248, 0.30), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(34, 197, 94, 0.14), transparent 45%),
+    #020617;
+  padding: 32px 16px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Outer container */
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+/* ===== Top brand header (simple one) ===== */
+.container > header {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.container > header h1 {
+  margin: 0;
+  letter-spacing: -0.04em;
+  font-size: 1.4rem;
+}
+
+.container > header p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Main app shell */
+.app-shell {
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.25), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.18), transparent 50%),
+    rgba(15, 23, 42, 0.95);
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: var(--shadow-soft);
+  padding: 16px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Topbar inside shell */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 999px;
+  background: linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.9),
+      rgba(15, 23, 42, 0.7),
+      rgba(15, 23, 42, 0.9)
+    );
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  backdrop-filter: blur(18px);
+}
+
+/* Brand block */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: conic-gradient(from 180deg, #38bdf8, #a855f7, #22c55e, #38bdf8);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  color: white;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.85);
+}
+
 /* Global reset */
 *,
 *::before,
@@ -374,6 +493,13 @@ button {
   color: var(--text);
 }
 
+}
+
+.chip:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
 .chip.is-active {
   background: var(--primary-soft);
   border-color: var(--primary);
@@ -470,6 +596,19 @@ button {
   border: 1px dashed var(--border-subtle);
   padding: 8px 9px;
   background: rgba(15, 23, 42, 0.96);
+}
+
+.timeline dt {
+  margin: 0 0 2px 0;
+  font-size: 0.7rem;
+  color: var(--text-soft);
+}
+
+.timeline dd {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 }
 
 .timeline dt {
@@ -611,6 +750,129 @@ select:focus {
   .timeline {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 20px 10px;
+  }
+
+  .app-shell {
+    padding: 12px;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.topbar-clock {
+  font-size: 0.8rem;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.assistant-shell {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+}
+
+.assistant-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.assistant-panel {
+  position: absolute;
+  right: 0;
+  bottom: 60px;
+  width: 320px;
+  max-height: 420px;
+  background: var(--panel);
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.assistant-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.assistant-messages {
+  padding: 12px;
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.assistant-message {
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.assistant-message--agent {
+  background: rgba(79, 70, 229, 0.16);
+  border: 1px solid rgba(129, 140, 248, 0.45);
+}
+
+.assistant-message--user {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  justify-self: end;
+}
+
+.assistant-input {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
+.assistant-input input {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.9);
+  padding: 8px 10px;
+  color: var(--text);
+}
+
+.assistant-input .button {
+  border-radius: 999px;
+  padding-inline: 16px;
+}
+
+@media (max-width: 640px) {
+  .assistant-panel {
+    width: 100vw;
+    right: -8px;
+    bottom: 56px;
 }
 
 @media (max-width: 640px) {
