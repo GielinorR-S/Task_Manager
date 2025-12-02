@@ -9,6 +9,7 @@ A full-stack task manager with a Django REST API backend and a React (Vite) fron
 - Optional due date/time on tasks with ordering by completion state and schedule.
 - Modern React dashboard showing stats, filters, and timeline details for each task.
 - Token-aware API client with automatic refresh handling on 401 responses.
+- **AI-powered task assistant** (Aurora) with natural language understanding via OpenAI integration.
 
 ## Quick start
 
@@ -54,6 +55,28 @@ npm run dev
 ## Environment
 - `.env.example` in `backend/` contains defaults for local development (SQLite by default) and CORS origins for the Vite dev server.
 - Update `CORS_ALLOWED_ORIGINS` if you serve the frontend from a different host/port.
+
+## AI Assistant Setup (Optional)
+
+The task assistant (Aurora) can use OpenAI for natural language understanding. Without an API key, it falls back to regex-based pattern matching.
+
+### Setup OpenAI Integration
+
+1. Get an API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Add to your `.env` file in the `backend/` directory:
+   ```bash
+   OPENAI_API_KEY=your-api-key-here
+   OPENAI_MODEL=gpt-4o-mini  # Optional: defaults to gpt-4o-mini
+   ```
+3. Restart your Django server
+
+The assistant will automatically use AI when the API key is configured, providing:
+- Natural language task creation with date/time parsing
+- Context-aware responses about your tasks
+- Intelligent task updates and management
+- Conversational help and suggestions
+
+Without the API key, the assistant still works using pattern matching for basic commands.
 
 Repository: https://github.com/GielinorR-S/Task_Manager.git
 

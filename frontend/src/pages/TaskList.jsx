@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import api from '../api'
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { useTasks } from '../contexts/TaskContext'
+import { formatDateTime, getDueDetails } from '../utils/dateUtils'
 
 const FILTERS = {
   all: 'All',
@@ -8,63 +9,140 @@ const FILTERS = {
   completed: 'Completed',
 }
 
-function formatDateTime(value) {
-  if (!value) return 'No due date set'
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
-}
+// Memoized task card component to prevent unnecessary re-renders
+const TaskCard = React.memo(({ task, onToggleComplete, onDelete }) => {
+  const due = useMemo(() => getDueDetails(task.due_at, task.completed), [task.due_at, task.completed])
+  const overdue = due.tone === 'danger'
+  
+  const handleToggle = useCallback(() => {
+    onToggleComplete(task)
+  }, [task, onToggleComplete])
+  
+  const handleDelete = useCallback(() => {
+    onDelete(task.id)
+  }, [task.id, onDelete])
 
-function getDueDetails(due_at, completed) {
-  if (!due_at) return { label: 'No schedule', tone: 'muted' }
-  const now = new Date()
-  const dueDate = new Date(due_at)
+  return (
+    <article
+      className={`task-card ${task.completed ? 'is-done' : ''} ${
+        overdue ? 'is-overdue' : ''
+      }`}
+    >
+      <header className="task-card__header">
+        <div className="task-meta">
+          <div className="task-badges">
+            <span className={`badge ${task.completed ? 'success' : 'info'}`}>
+              {task.completed ? 'Completed' : 'Active'}
+            </span>
+            <span className={`badge tone-${due.tone}`}>{due.label}</span>
+          </div>
+          <h4>{task.title}</h4>
+        </div>
 
-  if (completed) return { label: 'Completed on time?', tone: 'muted' }
-  if (dueDate < now) return { label: 'Overdue', tone: 'danger' }
-  const diffHours = Math.round((dueDate - now) / (1000 * 60 * 60))
-  if (diffHours <= 3) return { label: 'Due soon', tone: 'warning' }
-  return { label: 'Scheduled', tone: 'success' }
-}
+        <div className="task-actions">
+          <button className="ghost" onClick={handleToggle}>
+            {task.completed ? 'Mark active' : 'Mark done'}
+          </button>
+
+          <Link className="ghost" to={`/tasks/${task.id}/edit`}>
+            Edit
+          </Link>
+
+          <button className="ghost danger" onClick={handleDelete}>
+            Delete
+          </button>
+        </div>
+      </header>
+
+      <p className="muted">{task.description || 'No description provided.'}</p>
+
+      <dl className="timeline">
+        <div>
+          <dt>Due</dt>
+          <dd>{formatDateTime(task.due_at)}</dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>{formatDateTime(task.created_at)}</dd>
+        </div>
+        <div>
+          <dt>Updated</dt>
+          <dd>{formatDateTime(task.updated_at)}</dd>
+        </div>
+      </dl>
+    </article>
+  )
+})
+
+TaskCard.displayName = 'TaskCard'
 
 export default function TaskList() {
-  const [tasks, setTasks] = useState([])
+  const { tasks, fetchTasks, toggleComplete, deleteTask } = useTasks()
   const [filter, setFilter] = useState('all')
+  const notifiedRef = useRef(new Set())
+  const lastNotificationCheck = useRef(0)
 
+  // Request notification permission once
   useEffect(() => {
-    fetchTasks()
+    if (typeof Notification === 'undefined') return
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {})
+    }
   }, [])
 
-  async function fetchTasks() {
-    try {
-      const res = await api.get('/tasks/')
-      setTasks(res.data)
-    } catch (err) {
-      console.error(err)
-    }
-  }
+  // Optimized notification check - only run every 30 seconds and only for active tasks
+  useEffect(() => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
-  async function toggleComplete(task) {
-    try {
-      const payload = {
-        title: task.title,
-        description: task.description,
-        completed: !task.completed,
-        due_at: task.due_at,
+    const now = Date.now()
+    // Throttle notification checks to every 30 seconds
+    if (now - lastNotificationCheck.current < 30000) return
+    lastNotificationCheck.current = now
+
+    const soonMs = 15 * 60 * 1000 // 15 minutes
+    const currentTime = new Date()
+
+    // Only check active tasks with due dates
+    const activeTasksWithDueDates = tasks.filter(t => !t.completed && t.due_at)
+    
+    activeTasksWithDueDates.forEach((task) => {
+      const due = new Date(task.due_at)
+      const diff = due - currentTime
+      if (diff > 0 && diff <= soonMs && !notifiedRef.current.has(task.id)) {
+        notifiedRef.current.add(task.id)
+        try {
+          new Notification('Task due soon', {
+            body: `${task.title} at ${formatDateTime(task.due_at)}`,
+          })
+        } catch (e) {
+          console.error('Notification error', e)
+        }
       }
-      await api.put(`/tasks/${task.id}/`, payload)
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, completed: payload.completed } : t)))
+    })
+  }, [tasks]) // Only re-run when tasks array reference changes
+
+  // Fetch tasks only once on mount
+  useEffect(() => {
+    fetchTasks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run once on mount
+
+  const handleToggleComplete = useCallback(async (task) => {
+    try {
+      await toggleComplete(task)
     } catch (err) {
       console.error(err)
     }
-  }
+  }, [toggleComplete])
 
-  async function removeTask(id) {
+  const handleRemoveTask = useCallback(async (id) => {
     if (!confirm('Delete task?')) return
-    await api.delete(`/tasks/${id}/`)
-    setTasks((prev) => prev.filter((t) => t.id !== id))
-  }
+    try {
+      await deleteTask(id)
+    } catch (err) {
+      console.error(err)
+    }
+  }, [deleteTask])
 
   const stats = useMemo(() => {
     const completed = tasks.filter((t) => t.completed).length
@@ -72,53 +150,20 @@ export default function TaskList() {
     return { total: tasks.length, completed, upcoming }
   }, [tasks])
 
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === 'active') return !task.completed
-    if (filter === 'completed') return task.completed
-    return true
-  })
+  const filteredTasks = useMemo(() => {
+    if (filter === 'active') return tasks.filter((task) => !task.completed)
+    if (filter === 'completed') return tasks.filter((task) => task.completed)
+    return tasks
+  }, [tasks, filter])
+
+  const handleFilterChange = useCallback((newFilter) => {
+    setFilter(newFilter)
+  }, [])
 
   return (
-    <section>
-      <div className="page-header">
-        <div>
-          <p className="helper-text" style={{margin: 0}}>Create and track tasks with due dates and status.</p>
-          <h2 style={{margin: 0}}>Task dashboard</h2>
-        </div>
-        <Link to="/tasks/new" className="primary-btn">New task</Link>
-      </div>
+    <section className="stack-lg">
 
-      {tasks.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">🗂️</div>
-          <h3 className="empty-title">No tasks yet</h3>
-          <p className="empty-text">Create a task to start tracking work and due dates.</p>
-          <Link to="/tasks/new" className="primary-btn">Create your first task</Link>
-        </div>
-      ) : (
-        <ul className="card-grid">
-          {tasks.map(t=> (
-            <li key={t.id} className="task-card">
-              <header>
-                <div>
-                  <p className="helper-text" style={{margin: 0}}>Task #{t.id}</p>
-                  <h3 className="task-title">{t.title}</h3>
-                </div>
-                <span className={`pill ${t.completed ? 'complete' : 'incomplete'}`}>
-                  {t.completed ? 'Completed' : 'In progress'}
-                </span>
-              </header>
-              {t.description && <p className="task-meta">{t.description}</p>}
-              <div className="task-actions">
-                <Link to={`/tasks/${t.id}/edit`} className="ghost-btn">Edit</Link>
-                <button type="button" onClick={()=>removeTask(t.id)} className="ghost-btn">Delete</button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-    <div className="stack-lg">
+      {/* HEADER */}
       <div className="section-header">
         <div>
           <p className="eyebrow">Overview</p>
@@ -130,6 +175,7 @@ export default function TaskList() {
         </Link>
       </div>
 
+      {/* STATS */}
       <div className="stat-grid">
         <div className="stat-card">
           <p className="eyebrow">Total</p>
@@ -146,75 +192,35 @@ export default function TaskList() {
           <h4>{stats.upcoming}</h4>
           <p className="muted">With due dates & times</p>
         </div>
+
       </div>
 
+      {/* FILTERS */}
       <div className="filters">
         {Object.entries(FILTERS).map(([key, label]) => (
           <button
             key={key}
             className={`chip ${filter === key ? 'is-active' : ''}`}
-            onClick={() => setFilter(key)}
+            onClick={() => handleFilterChange(key)}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="task-grid">
-        {filteredTasks.map((task) => {
-          const due = getDueDetails(task.due_at, task.completed)
-          const overdue = due.tone === 'danger'
-
-          return (
-            <article
+      {/* TASK GRID */}
+      {filteredTasks.length > 0 ? (
+        <div className="task-grid">
+          {filteredTasks.map((task) => (
+            <TaskCard
               key={task.id}
-              className={`task-card ${task.completed ? 'is-done' : ''} ${overdue ? 'is-overdue' : ''}`}
-            >
-              <header className="task-card__header">
-                <div className="task-meta">
-                  <div className="task-badges">
-                    <span className={`badge ${task.completed ? 'success' : 'info'}`}>
-                      {task.completed ? 'Completed' : 'Active'}
-                    </span>
-                    <span className={`badge tone-${due.tone}`}>{due.label}</span>
-                  </div>
-                  <h4>{task.title}</h4>
-                </div>
-                <div className="task-actions">
-                  <button className="ghost" onClick={() => toggleComplete(task)}>
-                    {task.completed ? 'Mark active' : 'Mark done'}
-                  </button>
-                  <Link className="ghost" to={`/tasks/${task.id}/edit`}>
-                    Edit
-                  </Link>
-                  <button className="ghost danger" onClick={() => removeTask(task.id)}>
-                    Delete
-                  </button>
-                </div>
-              </header>
-
-              <p className="muted">{task.description || 'No description provided.'}</p>
-
-              <dl className="timeline">
-                <div>
-                  <dt>Due</dt>
-                  <dd>{formatDateTime(task.due_at)}</dd>
-                </div>
-                <div>
-                  <dt>Created</dt>
-                  <dd>{formatDateTime(task.created_at)}</dd>
-                </div>
-                <div>
-                  <dt>Updated</dt>
-                  <dd>{formatDateTime(task.updated_at)}</dd>
-                </div>
-              </dl>
-            </article>
-          )
-        })}
-      </div>
-
-      {filteredTasks.length === 0 && (
+              task={task}
+              onToggleComplete={handleToggleComplete}
+              onDelete={handleRemoveTask}
+            />
+          ))}
+        </div>
+      ) : (
         <div className="empty-state">
           <p className="eyebrow">Nothing here yet</p>
           <p className="muted">Create a task to start tracking work and due dates.</p>
@@ -223,6 +229,7 @@ export default function TaskList() {
           </Link>
         </div>
       )}
-    </div>
+    </section>
   )
 }
+

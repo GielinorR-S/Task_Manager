@@ -58,15 +58,35 @@ instance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccess}`
         return instance(originalRequest)
       } catch (e) {
-        // refresh failed, clear tokens
+        // refresh failed, clear tokens and redirect to login
         localStorage.removeItem('access')
         localStorage.removeItem('refresh')
+        localStorage.removeItem('access_timestamp')
         onRefreshed(null)
+        
+        // Redirect to login if we're not already there
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+          window.location.href = '/login'
+        }
+        
         return Promise.reject(e)
       } finally {
         isRefreshing = false
       }
     }
+    
+    // Handle 401 errors - token expired or invalid
+    if (err.response && err.response.status === 401) {
+      // Clear tokens and redirect to login
+      localStorage.removeItem('access')
+      localStorage.removeItem('refresh')
+      localStorage.removeItem('access_timestamp')
+      
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+        window.location.href = '/login'
+      }
+    }
+    
     return Promise.reject(err)
   }
 )
